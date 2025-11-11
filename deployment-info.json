@@ -1,0 +1,25 @@
+{
+  "network": "BNB Smart Chain Testnet",
+  "chainId": 97,
+  "deployer": "0x5325C04eC695d1CB13EB984F7956D90717c4Ac6f",
+  "contracts": {
+    "CAPX": {
+      "address": "0xE12B4afd88990736d4687E43d263f5D4826fEb46",
+      "name": "CAPShield Token",
+      "symbol": "CAPX",
+      "decimals": 18,
+      "totalSupply": "100000000000000000000000000",
+      "maxSupply": "100000000000000000000000000",
+      "transactionHash": "0x2bf8a95c2dbf28944ad08a39bd3419ba4cb86dbefc13aa1b67ce60b9610f7366"
+    },
+    "ANGEL": {
+      "address": "0x27f35B2036B7605AD49b8445a7433C18a7292C16",
+      "name": "AngleSeed Token",
+      "symbol": "ANGEL",
+      "decimals": 18,
+      "totalSupply": "10000000000000000000000000000",
+      "transactionHash": "0x9bdf325bff5e72b01882c8a91d9f3b64cdf156a41244c0d4ba494abe9d46ba60"
+    }
+  },
+  "timestamp": "2025-11-11T07:46:17.865Z"
+}

@@ -15,46 +15,21 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract ANGEL is ERC20, ERC20Burnable, Ownable {
     uint8 private constant _DECIMALS = 18;
-    uint256 private constant _INITIAL_SUPPLY = 10_000_000_000 * 10**_DECIMALS; // 10 billion ANGEL
+    uint256 private constant _INITIAL_SUPPLY = 10_000_000_000 * 10**_DECIMALS;
     
-    /**
-     * @dev Constructor that mints the initial supply to the deployer
-     */
     constructor() ERC20("AngleSeed Token", "ANGEL") {
         _mint(msg.sender, _INITIAL_SUPPLY);
     }
     
-    /**
-     * @dev Returns the number of decimals used
-     */
     function decimals() public pure override returns (uint8) {
         return _DECIMALS;
     }
     
     /**
-     * @dev Mint new tokens - only owner can mint for community rewards
-     * @param to Address to mint tokens to
-     * @param amount Amount of tokens to mint
+     * @dev Mint new tokens for community rewards - only owner
+     * This allows ongoing minting as required for "No Fixed Supply"
      */
     function mint(address to, uint256 amount) public onlyOwner {
         _mint(to, amount);
-    }
-    
-    /**
-     * @dev Override burn function to allow token burning
-     * @param amount Amount of tokens to burn
-     */
-    function burn(uint256 amount) public override {
-        _burn(_msgSender(), amount);
-    }
-    
-    /**
-     * @dev Override burnFrom function to allow token burning from specific address
-     * @param account Address to burn tokens from
-     * @param amount Amount of tokens to burn
-     */
-    function burnFrom(address account, uint256 amount) public override {
-        _spendAllowance(account, _msgSender(), amount);
-        _burn(account, amount);
     }
 }

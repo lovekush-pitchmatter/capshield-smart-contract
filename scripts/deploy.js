@@ -1,9 +1,13 @@
+// scripts/deploy.js
 const { ethers } = require("hardhat");
 
 async function main() {
   const [deployer] = await ethers.getSigners();
 
-  console.log("Deploying contracts with the account:", deployer.address);
+  console.log(
+    "Deploying contracts to BSC Testnet with account:",
+    deployer.address
+  );
   console.log("Account balance:", (await deployer.getBalance()).toString());
 
   // Deploy CAPX Token
@@ -20,21 +24,7 @@ async function main() {
   await angel.deployed();
   console.log("ANGEL Token deployed to:", angel.address);
 
-  // Verify deployment details
-  console.log("\n=== Deployment Summary ===");
-  console.log("Deployer Address:", deployer.address);
-  console.log("CAPX Address:", capx.address);
-  console.log("ANGEL Address:", angel.address);
-  console.log("CAPX Total Supply:", (await capx.totalSupply()).toString());
-  console.log("ANGEL Total Supply:", (await angel.totalSupply()).toString());
-  console.log("CAPX Decimals:", await capx.decimals());
-  console.log("ANGEL Decimals:", await angel.decimals());
-  console.log("CAPX Symbol:", await capx.symbol());
-  console.log("ANGEL Symbol:", await angel.symbol());
-  console.log("CAPX Name:", await capx.name());
-  console.log("ANGEL Name:", await angel.name());
-
-  // Save deployment info to file
+  // Save deployment info
   const fs = require("fs");
   const deploymentInfo = {
     network: "BNB Smart Chain Testnet",
@@ -47,6 +37,7 @@ async function main() {
         symbol: await capx.symbol(),
         decimals: await capx.decimals(),
         totalSupply: (await capx.totalSupply()).toString(),
+        maxSupply: (await capx.getMaxSupply()).toString(),
         transactionHash: capx.deployTransaction.hash,
       },
       ANGEL: {
@@ -68,9 +59,7 @@ async function main() {
   console.log("\nDeployment info saved to deployment-info.json");
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
