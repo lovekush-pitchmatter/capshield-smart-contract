@@ -32,3 +32,10 @@ temp.js
 # Temporarily ignore CAPX files
 test/CAPX.test.js
 contracts/CAPX_Updated.sol
+
+
+node_modules/
+artifacts/
+cache/
+coverage/
+.env
