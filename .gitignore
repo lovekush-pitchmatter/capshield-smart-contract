@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 .env
+/scratch
+/artifacts
 
 # Editor directories and files
 .vscode/*
