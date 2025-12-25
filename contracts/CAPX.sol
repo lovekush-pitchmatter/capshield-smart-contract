@@ -49,6 +49,11 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
     event TreasuryAddressUpdated(address indexed oldAddress, address indexed newAddress);
     event DAOAddressUpdated(address indexed oldAddress, address indexed newAddress);
     event ExemptionUpdated(address indexed account, bool isExempt);
+    event TeamMint(address indexed minter, address indexed to, uint256 amount);
+    event TreasuryMint(address indexed minter, address indexed to, uint256 amount);
+    event DAOMint(address indexed minter, address indexed to, uint256 amount);
+    event Burn(address indexed account, uint256 amount);
+    event BurnFrom(address indexed operator, address indexed account, uint256 amount);
 
     // Constructor - initializes with zero supply
     constructor(
@@ -59,6 +64,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
         require(_treasuryAddress != address(0), "Treasury address cannot be zero");
         require(_daoAddress != address(0), "DAO address cannot be zero");
         require(_adminAddress != address(0), "Admin address cannot be zero");
+        require(_adminAddress.code.length > 0, "Admin must be multisig/contract");
 
         treasuryAddress = _treasuryAddress;
         daoAddress = _daoAddress;
@@ -92,6 +98,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     function teamMint(address to, uint256 amount) external onlyRole(TEAM_MINTER_ROLE) whenNotPaused {
         _mintWithCapCheck(to, amount);
+        emit TeamMint(_msgSender(), to, amount);
     }
 
     /**
@@ -101,6 +108,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     function treasuryMint(address to, uint256 amount) external onlyRole(TREASURY_MINTER_ROLE) whenNotPaused {
         _mintWithCapCheck(to, amount);
+        emit TreasuryMint(_msgSender(), to, amount);
     }
 
     /**
@@ -110,6 +118,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     function daoMint(address to, uint256 amount) external onlyRole(DAO_MINTER_ROLE) whenNotPaused {
         _mintWithCapCheck(to, amount);
+        emit DAOMint(_msgSender(), to, amount);
     }
 
     /**
@@ -141,6 +150,8 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      * @param amount Amount to mint
      */
     function _mintWithCapCheck(address to, uint256 amount) private {
+        require(to != address(0), "Cannot mint to zero address");
+        require(amount > 0, "Amount must be greater than 0");
         require(totalMinted + amount <= MAX_SUPPLY, "Minting would exceed max supply");
 
         totalMinted += amount;
@@ -176,6 +187,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
 
             if (burnAmount > 0) {
                 _burn(from, burnAmount); // 1% burn (reduces totalSupply)
+                emit Burn(from, burnAmount);
             }
 
             if (treasuryAmount > 0) {
@@ -183,6 +195,22 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
                 emit TreasuryFee(from, treasuryAddress, treasuryAmount);
             }
         }
+    }
+
+    /**
+     * @dev Override burn to emit Burn event
+     */
+    function burn(uint256 amount) public override {
+        super.burn(amount);
+        emit Burn(_msgSender(), amount);
+    }
+
+    /**
+     * @dev Override burnFrom to emit BurnFrom event
+     */
+    function burnFrom(address account, uint256 amount) public override {
+        super.burnFrom(account, amount);
+        emit BurnFrom(_msgSender(), account, amount);
     }
 
     /**
