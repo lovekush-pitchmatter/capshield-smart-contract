@@ -32,6 +32,8 @@ contract ANGEL is ERC20, ERC20Burnable, Pausable, AccessControl {
 
     // Events
     event RewardMint(address indexed to, uint256 amount, string reason);
+    event Burn(address indexed account, uint256 amount);
+    event BurnFrom(address indexed operator, address indexed account, uint256 amount);
 
     /**
      * @dev Constructor - initializes with zero supply
@@ -39,6 +41,7 @@ contract ANGEL is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     constructor(address _adminAddress) ERC20("AngleSeed Token", "SEED") {
         require(_adminAddress != address(0), "Admin address cannot be zero");
+        require(_adminAddress.code.length > 0, "Admin must be multisig/contract");
 
         // Grant roles to admin (multisig)
         _grantRole(DEFAULT_ADMIN_ROLE, _adminAddress);
@@ -149,6 +152,7 @@ contract ANGEL is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     function burn(uint256 amount) public override {
         super.burn(amount);
+        emit Burn(_msgSender(), amount);
         // totalMinted remains unchanged - burn does not free up mint capacity
     }
 
@@ -157,6 +161,7 @@ contract ANGEL is ERC20, ERC20Burnable, Pausable, AccessControl {
      */
     function burnFrom(address account, uint256 amount) public override {
         super.burnFrom(account, amount);
+        emit BurnFrom(_msgSender(), account, amount);
         // totalMinted remains unchanged - burn does not free up mint capacity
     }
 }
