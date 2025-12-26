@@ -1,7 +1,3 @@
-// scripts/verify.js
-// Unified contract verification script
-// Usage: npx hardhat run scripts/verify.js --network <network_name>
-
 const hre = require("hardhat");
 const fs = require("fs");
 
