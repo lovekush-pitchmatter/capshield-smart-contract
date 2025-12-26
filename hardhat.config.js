@@ -1,7 +1,13 @@
-// hardhat.config.js
 require("@nomicfoundation/hardhat-toolbox");
 require("@nomicfoundation/hardhat-verify");
 require("dotenv").config();
+
+const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
+
+// Validate private key format if provided
+if (PRIVATE_KEY && !PRIVATE_KEY.match(/^(0x)?[0-9a-fA-F]{64}$/)) {
+  console.warn("⚠️  Warning: PRIVATE_KEY in .env appears to be invalid format");
+}
 
 module.exports = {
   solidity: {
@@ -9,69 +15,104 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200,
+        runs: 500,
+      },
+      viaIR: false,
+      metadata: {
+        bytecodeHash: "ipfs",
       },
     },
   },
+
   networks: {
-    sepolia: {
-      url: "https://ethereum-sepolia-rpc.publicnode.com",
-      chainId: 11155111,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      timeout: 60000,
+    // Hardhat local network (default)
+    hardhat: {
+      chainId: 31337,
     },
-    mumbai: {
-      url: "https://rpc-mumbai.maticvigil.com/",
-      chainId: 80001,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+
+    // Polygon Mainnet
+    polygon: {
+      url:
+        process.env.POLYGON_RPC_URL || "https://polygon-bor-rpc.publicnode.com",
+      chainId: 137,
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      gasPrice: "auto",
+      timeout: 120000,
     },
+
+    // Polygon Amoy Testnet
+    polygonAmoy: {
+      url:
+        process.env.POLYGON_AMOY_RPC_URL ||
+        "https://polygon-amoy-bor-rpc.publicnode.com",
+      chainId: 80002,
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      gasPrice: "auto",
+      timeout: 120000,
+    },
+
+    // BSC Mainnet
+    bsc: {
+      url: process.env.BSC_RPC_URL || "https://bsc-dataseed.binance.org",
+      chainId: 56,
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      gasPrice: "auto",
+      timeout: 120000,
+    },
+
+    // BSC Testnet
     bscTestnet: {
-      url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+      url:
+        process.env.BSC_TESTNET_RPC_URL ||
+        "https://data-seed-prebsc-1-s1.binance.org:8545/",
       chainId: 97,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      gasPrice: "auto",
+      timeout: 120000,
     },
   },
+
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY, // Single API key for all chains
+    apiKey: {
+      // Polygon
+      polygon: process.env.POLYGONSCAN_API_KEY || "",
+      polygonAmoy: process.env.POLYGONSCAN_API_KEY || "",
+      // BSC
+      bsc: process.env.BSCSCAN_API_KEY || "",
+      bscTestnet: process.env.BSCSCAN_API_KEY || "",
+    },
     customChains: [
-      // Sepolia
       {
-        network: "sepolia",
-        chainId: 11155111,
+        network: "polygonAmoy",
+        chainId: 80002,
         urls: {
-          apiURL: "https://api.etherscan.io/v2/api?chainid=11155111",
-          browserURL: "https://sepolia.etherscan.io",
-        },
-      },
-      // Polygon Mumbai
-      {
-        network: "polygonMumbai",
-        chainId: 80001,
-        urls: {
-          apiURL: "https://api.etherscan.io/v2/api?chainid=80001",
-          browserURL: "https://mumbai.polygonscan.com",
-        },
-      },
-      // BSC Testnet
-      {
-        network: "bscTestnet",
-        chainId: 97,
-        urls: {
-          apiURL: "https://api.etherscan.io/v2/api?chainid=97",
-          browserURL: "https://testnet.bscscan.com",
+          apiURL: "https://api-amoy.polygonscan.com/api",
+          browserURL: "https://amoy.polygonscan.com",
         },
       },
     ],
   },
+
   sourcify: {
     enabled: true,
   },
+
+  gasReporter: {
+    enabled: process.env.REPORT_GAS === "true",
+    currency: "USD",
+    coinmarketcap: process.env.CMC_API_KEY || undefined,
+    showTimeSpent: true,
+    outputFile: process.env.GAS_REPORT_FILE || undefined,
+    noColors: process.env.GAS_REPORT_FILE ? true : false,
+  },
+
   paths: {
     sources: "./contracts",
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
   },
+
   mocha: {
     timeout: 400000,
   },
