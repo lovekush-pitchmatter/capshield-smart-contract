@@ -1,7 +1,3 @@
-// test/ANGEL.test.js
-// Comprehensive test suite for ANGEL (AngleSeed Token)
-// Covers all Phase 2 validation requirements
-
 const { expect } = require("chai");
 const hre = require("hardhat");
 
@@ -1047,7 +1043,7 @@ describe("ANGEL Token - Community Reward Token", function () {
       expect(await angel.totalSupply()).to.equal(hre.ethers.parseEther("4000"));
       expect(await angel.totalMinted()).to.equal(
         hre.ethers.parseEther("10000")
-      ); // Unchanged
+      );
     });
   });
 });
