@@ -1,25 +1,39 @@
 {
-  "network": "BNB Smart Chain Testnet",
-  "chainId": 97,
-  "deployer": "0x5325C04eC695d1CB13EB984F7956D90717c4Ac6f",
+  "network": "polygonAmoy",
+  "chainId": 80002,
+  "deployer": "0x918500e41ef5A8138a01cfd7B01aDA4A4ECaf5ae",
   "contracts": {
     "CAPX": {
-      "address": "0xE12B4afd88990736d4687E43d263f5D4826fEb46",
+      "address": "0x785c983DD5e72bA837C23e42eB1cAFcd6dc92d77",
       "name": "CAPShield Token",
-      "symbol": "CAPX",
+      "symbol": "CAPY",
       "decimals": 18,
-      "totalSupply": "100000000000000000000000000",
+      "totalSupply": "0",
       "maxSupply": "100000000000000000000000000",
-      "transactionHash": "0x2bf8a95c2dbf28944ad08a39bd3419ba4cb86dbefc13aa1b67ce60b9610f7366"
+      "transactionHash": "0x7659f1ced60163450ab33e347eec24bb120f3bab78f654d1b19f58af41837b7e",
+      "constructorArgs": [
+        "0xBab7D3d7b116c0Cd21F133a4694eeE83360AdfeD",
+        "0xd2d755fC4B959A4e68928F1E4AF00637D03546A3",
+        "0x06f86E116461B385d6d56CC15b595696c66914a2"
+      ]
     },
     "ANGEL": {
-      "address": "0x27f35B2036B7605AD49b8445a7433C18a7292C16",
+      "address": "0x6fb5420D8D9b020285C52CD0925Ccd317dFcd8Bf",
       "name": "AngleSeed Token",
-      "symbol": "ANGEL",
+      "symbol": "SEED",
       "decimals": 18,
-      "totalSupply": "10000000000000000000000000000",
-      "transactionHash": "0x9bdf325bff5e72b01882c8a91d9f3b64cdf156a41244c0d4ba494abe9d46ba60"
+      "totalSupply": "0",
+      "maxSupply": "10000000000000000000000000000",
+      "transactionHash": "0x890a2f2a84a989b23c2dd830945f0eb97f0f1dc790306beb969a3378762894e3",
+      "constructorArgs": [
+        "0x06f86E116461B385d6d56CC15b595696c66914a2"
+      ]
     }
   },
-  "timestamp": "2025-11-11T07:46:17.865Z"
+  "configuration": {
+    "treasuryAddress": "0xBab7D3d7b116c0Cd21F133a4694eeE83360AdfeD",
+    "daoAddress": "0xd2d755fC4B959A4e68928F1E4AF00637D03546A3",
+    "adminAddress": "0x06f86E116461B385d6d56CC15b595696c66914a2"
+  },
+  "timestamp": "2025-12-29T07:39:45.175Z"
 }
