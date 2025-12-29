@@ -23,7 +23,12 @@
     "verify:bsc": "npx hardhat run scripts/verify.js --network bsc",
     "verify:bsc:testnet": "npx hardhat run scripts/verify.js --network bscTestnet",
     "check:balance": "node scripts/check-balance.js",
-    "generate:wallet": "node scripts/generate-wallet.js"
+    "generate:wallet": "node scripts/generate-wallet.js",
+    "deploy:mockadmin:polygon:testnet": "npx hardhat run scripts/deploy-mockadmin.js --network polygonAmoy",
+    "deploy:mockadmin:polygon": "npx hardhat run scripts/deploy-mockadmin.js --network polygon",
+    "deploy:mockadmin:bsc:testnet": "npx hardhat run scripts/deploy-mockadmin.js --network bscTestnet",
+    "deploy:mockadmin:bsc": "npx hardhat run scripts/deploy-mockadmin.js --network bsc",
+    "deploy:mockadmin:local": "npx hardhat run scripts/deploy-mockadmin.js --network localhost"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
