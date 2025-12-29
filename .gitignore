@@ -11,9 +11,25 @@ node_modules
 dist
 dist-ssr
 *.local
-.env
 /scratch
-/artifacts
+/artifacts/*
+/cache/*
+typechain-types
+
+# Environment variables (NEVER commit these!)
+.env
+.env.*
+!.env.example
+
+# Hardhat
+artifacts/
+cache/
+coverage/
+coverage.json
+
+# Deployment info (contains sensitive addresses)
+deployments/*.json
+deployment-info.json
 
 # Editor directories and files
 .vscode/*
@@ -25,8 +41,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.env.*
-.env.production
+
+# Temporary files
 old.js
 tmp
 temp.js
+*.tmp

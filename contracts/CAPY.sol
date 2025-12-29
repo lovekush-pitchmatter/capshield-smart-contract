@@ -59,7 +59,7 @@ contract CAPY is ERC20, OwnableRoles, Pausable, ICAPY {
         require(_treasury != address(0), ZeroAddress());
         require(_dao != address(0), ZeroAddress());
 
-        // SECURITY: Enforce that admin is a contract (multisig), not an EOA
+        // Enforce that admin is a contract (multisig), not an EOA
         // This prevents single EOA from having full control over the token
         require(_isContract(admin), AdminMustBeContract());
 

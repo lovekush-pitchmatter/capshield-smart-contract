@@ -14,6 +14,9 @@ module.exports = {
     },
   },
   networks: {
+    hardhat: {
+      chainId: 31337,
+    },
     sepolia: {
       url: "https://ethereum-sepolia-rpc.publicnode.com",
       chainId: 11155111,
@@ -26,13 +29,25 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
     bscTestnet: {
-      url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+      url: process.env.BSC_TESTNET_RPC || "https://data-seed-prebsc-1-s1.binance.org:8545",
       chainId: 97,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      gasPrice: 10000000000, // 10 gwei
+    },
+    bscMainnet: {
+      url: process.env.BSC_MAINNET_RPC || "https://bsc-dataseed.binance.org",
+      chainId: 56,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      gasPrice: "auto",
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY, // Single API key for all chains
+    apiKey: {
+      sepolia: process.env.ETHERSCAN_API_KEY || "",
+      polygonMumbai: process.env.ETHERSCAN_API_KEY || "",
+      bscTestnet: process.env.BSCSCAN_API_KEY || "",
+      bsc: process.env.BSCSCAN_API_KEY || "",
+    },
     customChains: [
       // Sepolia
       {
