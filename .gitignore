@@ -2,6 +2,7 @@ artifacts
 cache
 coverage
 node_modules
+coverage.json
 
 # Logs
 logs
