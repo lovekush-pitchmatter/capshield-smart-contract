@@ -6,8 +6,24 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
-    "deploy:testnet": "npx hardhat run scripts/deploy.js --network testnet",
-    "verify:testnet": "npx hardhat run scripts/verify.js --network testnet"
+    "test:angel": "npx hardhat test test/ANGEL.test.js",
+    "test:capx": "npx hardhat test test/CAPX.test.js",
+    "test:gas": "REPORT_GAS=true npx hardhat test",
+    "coverage": "npx hardhat coverage",
+    "gas:report": "REPORT_GAS=true npx hardhat test",
+    "clean": "npx hardhat clean",
+    "node:local": "npx hardhat node",
+    "deploy:local": "npx hardhat run scripts/deploy.js --network localhost",
+    "deploy:polygon": "npx hardhat run scripts/deploy.js --network polygon",
+    "deploy:polygon:testnet": "npx hardhat run scripts/deploy.js --network polygonAmoy",
+    "deploy:bsc": "npx hardhat run scripts/deploy.js --network bsc",
+    "deploy:bsc:testnet": "npx hardhat run scripts/deploy.js --network bscTestnet",
+    "verify:polygon": "npx hardhat run scripts/verify.js --network polygon",
+    "verify:polygon:testnet": "npx hardhat run scripts/verify.js --network polygonAmoy",
+    "verify:bsc": "npx hardhat run scripts/verify.js --network bsc",
+    "verify:bsc:testnet": "npx hardhat run scripts/verify.js --network bscTestnet",
+    "check:balance": "node scripts/check-balance.js",
+    "generate:wallet": "node scripts/generate-wallet.js"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
