@@ -702,9 +702,3 @@ Transfer(address indexed from, address indexed to, uint256 value)
 // 5. Calculate expected value
 // 6. Confirm on-chain vs. off-chain records
 ```
-
----
-
-**Last Updated:** January 4, 2026  
-**Version:** 1.0.0  
-**Audience:** Security Engineers, Operations, Executives

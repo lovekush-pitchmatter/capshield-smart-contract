@@ -857,9 +857,3 @@ await batchRewardMint([addr1, addr2, addr3], [100, 200], "reason");
 3. **Emergency Pause:** Set up `PAUSER_ROLE` on multisig
 4. **Monitoring:** Alert on large mints or reason changes
 5. **Testing:** Test batch minting with max array sizes
-
----
-
-**Last Updated:** January 4, 2026  
-**Version:** 1.0.0  
-**Audience:** Developers, Community Managers, Auditors, Operations

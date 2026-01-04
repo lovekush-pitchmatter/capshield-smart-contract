@@ -787,9 +787,3 @@ computeVestedAmount() > 0
 // - Beneficiary gets: 500 - 300 = 200 vested tokens
 // - Admin gets back: 1000 - 500 = 500 unvested tokens
 ```
-
----
-
-**Last Updated:** January 4, 2026  
-**Version:** 1.0.0  
-**Audience:** Developers, Team Lead, Auditors

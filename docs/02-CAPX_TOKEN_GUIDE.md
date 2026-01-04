@@ -913,9 +913,3 @@ When paused:
 - ❌ Cannot transfer
 - ❌ Cannot mint
 - ✅ Can still burn (if OpenZeppelin allows)
-
----
-
-**Last Updated:** January 4, 2026  
-**Version:** 1.0.0  
-**Audience:** Developers, Auditors, Operations

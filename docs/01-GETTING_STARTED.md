@@ -455,9 +455,3 @@ capshield-smart-contract/
 - [ ] Read [CAPX Guide](02-CAPX_TOKEN_GUIDE.md)
 - [ ] Read [ANGEL Guide](03-ANGEL_TOKEN_GUIDE.md)
 - [ ] Read [Deployment Guide](05-DEPLOYMENT_GUIDE.md)
-
----
-
-**Last Updated:** January 4, 2026  
-**Version:** 1.0.0  
-**Audience:** All (developers, auditors, operations)
