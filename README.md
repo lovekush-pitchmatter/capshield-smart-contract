@@ -818,7 +818,7 @@ Generates:
 ### Supported Networks
 
 | Network | Chain ID | RPC URL | Explorer |
-|---------|----------|---------|----------|
+| --- | --- | --- | --- |
 | **Polygon Mainnet** | 137 | https://polygon-bor-rpc.publicnode.com | https://polygonscan.com |
 | **Polygon Amoy Testnet** | 80002 | https://rpc-amoy.polygon.technology | https://amoy.polygonscan.com |
 | **BSC Mainnet** | 56 | https://bsc-dataseed.binance.org | https://bscscan.com |
@@ -876,19 +876,4 @@ npm run deploy:polygon:testnet
 # Mainnet Deployment  
 npm run deploy:polygon
 npm run deploy:bsc
-```
-
-### Contract Addresses
-
-Update after deployment:
-
-```
-Polygon Amoy Testnet (Chain ID: 80002)
-├─ CAPX:  [TBD]
-├─ ANGEL: [TBD]
-└─ MockAdmin: [TBD]
-
-Polygon Mainnet (Chain ID: 137)
-├─ CAPX:  [TBD]
-└─ ANGEL: [TBD]
 ```
