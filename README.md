@@ -1,27 +1,56 @@
-# 🛡️ CAPShield Smart Contracts
+# 🛡️ CAPShield Smart Contract Suite
 
-**ERC20 token implementations for the CAPShield ecosystem featuring role-based access control, irreversible hard caps, deflationary mechanics, and multisig governance.**
+## Production-Grade Multi-Token Ecosystem with Vesting
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Solidity: 0.8.19](https://img.shields.io/badge/Solidity-0.8.19-orange.svg)](https://soliditylang.org/)
-[![OpenZeppelin: v4.9.6](https://img.shields.io/badge/OpenZeppelin-v4.9.6-purple.svg)](https://openzeppelin.com/)
+Comprehensive smart contract suite for the CAPShield token ecosystem, featuring Shield (CAPX) and Community (ANGEL) tokens with advanced vesting capabilities.
+
+**Network Support:** Polygon, BSC, Ethereum  
+**Solidity Version:** ^0.8.19  
+**Framework:** Hardhat + ethers.js v6  
+**Security:** OpenZeppelin Audited Contracts + Custom Security Patterns
+
+---
+
+## 📋 Quick Navigation
+
+### 🚀 Getting Started
+- **New to the project?** Start with [**Getting Started Guide**](docs/01-GETTING_STARTED.md)
+- **Quick setup in 5 minutes:** See [Installation & Quick Start](docs/01-GETTING_STARTED.md#quick-start)
+- **Need to deploy?** Check [Step-by-Step Deployment](docs/05-DEPLOYMENT_GUIDE.md)
+
+### 📚 Technical Documentation
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [01-GETTING_STARTED.md](docs/01-GETTING_STARTED.md) | Setup, environment, quick commands | Everyone |
+| [02-CAPX_TOKEN_GUIDE.md](docs/02-CAPX_TOKEN_GUIDE.md) | Shield token specifications & functions | Developers, Auditors |
+| [03-ANGEL_TOKEN_GUIDE.md](docs/03-ANGEL_TOKEN_GUIDE.md) | Community token specifications & functions | Developers, Auditors |
+| [04-TOKEN_VESTING_GUIDE.md](docs/04-TOKEN_VESTING_GUIDE.md) | Vesting system design & functions | Developers, Treasury |
+| [05-DEPLOYMENT_GUIDE.md](docs/05-DEPLOYMENT_GUIDE.md) | Complete deployment workflow | DevOps, Smart Contract Team |
+| [06-ARCHITECTURE_AND_DESIGN.md](docs/06-ARCHITECTURE_AND_DESIGN.md) | System design & patterns | Architects, Advanced Devs |
+| [07-SECURITY_AND_BEST_PRACTICES.md](docs/07-SECURITY_AND_BEST_PRACTICES.md) | Security analysis & procedures | Security, Operations |
+| [08-API_REFERENCE.md](docs/08-API_REFERENCE.md) | Complete function reference | Developers, Integrators |
+| [09-TROUBLESHOOTING.md](docs/09-TROUBLESHOOTING.md) | Common issues & solutions | Everyone |
 
 ---
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [CAPX Token](#capx-token--shield-token)
-- [ANGEL Token](#angel-token--community-reward-token)
-- [MockAdmin Contract](#mockadmin-contract)
-- [Deployment Guide](#deployment-guide)
-- [Development](#development)
-- [Testing](#testing)
-- [Security](#security)
-- [Network Support](#network-support)
+- [Quick Navigation](#quick-navigation)
+- [System Architecture](#system-architecture)
+- [Smart Contracts](#smart-contracts)
+- [Deployment Workflow](#deployment-workflow)
+- [Access Control](#access-control--roles)
+- [Testing & Coverage](#testing--coverage)
+- [Project Setup](#project-setup)
+- [Security](#security-considerations)
+- [Common Tasks](#common-tasks)
+- [Documentation Index](#documentation-index)
+- [Troubleshooting](#troubleshooting)
 - [Project Structure](#project-structure)
-- [License](#license)
+- [Dependencies](#dependencies)
+- [Networks](#networks)
+- [Support](#support--resources)
 
 ---
 
@@ -138,6 +167,7 @@ Transfer 100 CAPY
 ```
 
 **Fee Exemptions:**
+
 - Treasury address (automatic)
 - DAO address (automatic)
 - Additional exemptions (admin-controlled via `setExemption`)
