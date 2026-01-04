@@ -176,6 +176,138 @@ contract MockAdmin {
     }
 
     /**
+     * @dev Creates a vesting schedule on TokenVesting contract
+     * @param target The TokenVesting contract address
+     * @param beneficiary Address of the beneficiary
+     * @param token Address of the ERC20 token
+     * @param totalAmount Total amount of tokens to vest
+     * @param startTime Vesting start timestamp
+     * @param cliffDuration Cliff duration in seconds
+     * @param duration Total vesting duration in seconds
+     * @param stepDuration Step duration for STEP vesting (0 for LINEAR)
+     * @param revocable Whether the vesting is revocable
+     */
+    function createVestingSchedule(
+        address target,
+        address beneficiary,
+        address token,
+        uint256 totalAmount,
+        uint256 startTime,
+        uint256 cliffDuration,
+        uint256 duration,
+        uint256 stepDuration,
+        bool revocable
+    ) external {
+        (bool success, ) = target.call(
+            abi.encodeWithSignature(
+                "createVestingSchedule(address,address,uint256,uint256,uint256,uint256,uint256,bool)",
+                beneficiary,
+                token,
+                totalAmount,
+                startTime,
+                cliffDuration,
+                duration,
+                stepDuration,
+                revocable
+            )
+        );
+        require(success, "createVestingSchedule failed");
+    }
+
+    /**
+     * @dev Batch creates vesting schedules on TokenVesting contract
+     * @param target The TokenVesting contract address
+     * @param beneficiaries Array of beneficiary addresses
+     * @param token Address of the ERC20 token
+     * @param amounts Array of token amounts
+     * @param startTime Vesting start timestamp
+     * @param cliffDuration Cliff duration in seconds
+     * @param duration Total vesting duration in seconds
+     * @param stepDuration Step duration for STEP vesting
+     * @param revocable Whether the vesting is revocable
+     */
+    function batchCreateVestingSchedules(
+        address target,
+        address[] calldata beneficiaries,
+        address token,
+        uint256[] calldata amounts,
+        uint256 startTime,
+        uint256 cliffDuration,
+        uint256 duration,
+        uint256 stepDuration,
+        bool revocable
+    ) external {
+        (bool success, ) = target.call(
+            abi.encodeWithSignature(
+                "batchCreateVestingSchedules(address[],address,uint256[],uint256,uint256,uint256,uint256,bool)",
+                beneficiaries,
+                token,
+                amounts,
+                startTime,
+                cliffDuration,
+                duration,
+                stepDuration,
+                revocable
+            )
+        );
+        require(success, "batchCreateVestingSchedules failed");
+    }
+
+    /**
+     * @dev Revokes a vesting schedule on TokenVesting contract
+     * @param target The TokenVesting contract address
+     * @param scheduleId ID of the vesting schedule to revoke
+     */
+    function revokeVesting(address target, uint256 scheduleId) external {
+        (bool success, ) = target.call(
+            abi.encodeWithSignature("revokeVesting(uint256)", scheduleId)
+        );
+        require(success, "revokeVesting failed");
+    }
+
+    /**
+     * @dev Pauses the TokenVesting contract
+     * @param target The TokenVesting contract address
+     */
+    function pauseVesting(address target) external {
+        (bool success, ) = target.call(abi.encodeWithSignature("pause()"));
+        require(success, "pauseVesting failed");
+    }
+
+    /**
+     * @dev Unpauses the TokenVesting contract
+     * @param target The TokenVesting contract address
+     */
+    function unpauseVesting(address target) external {
+        (bool success, ) = target.call(abi.encodeWithSignature("unpause()"));
+        require(success, "unpauseVesting failed");
+    }
+
+    /**
+     * @dev Withdraws excess tokens from TokenVesting contract
+     * @param target The TokenVesting contract address
+     * @param token Token address
+     * @param recipient Recipient address
+     * @param amount Amount to withdraw
+     */
+    function withdrawExcessTokens(
+        address target,
+        address token,
+        address recipient,
+        uint256 amount
+    ) external {
+        (bool success, ) = target.call(
+            abi.encodeWithSignature(
+                "withdrawExcessTokens(address,address,uint256)",
+                token,
+                recipient,
+                amount
+            )
+        );
+        require(success, "withdrawExcessTokens failed");
+    }
+
+    /**
      * @dev Fallback to receive ETH if needed
      */
     receive() external payable {}
