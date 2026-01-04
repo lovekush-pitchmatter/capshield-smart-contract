@@ -3,18 +3,29 @@ const hre = require("hardhat");
 
 describe("ANGEL Token - Community Reward Token", function () {
   let angel;
+  let mockMultisig;
   let owner, user1, user2, user3, user4, user5;
   let REWARD_MINTER_ROLE, PAUSER_ROLE;
 
   beforeEach(async function () {
     [owner, user1, user2, user3, user4, user5] = await hre.ethers.getSigners();
 
+    // Deploy MockMultisig first
+    const MockMultisig = await hre.ethers.getContractFactory("MockMultisig");
+    mockMultisig = await MockMultisig.deploy(owner.address);
+
     const ANGEL = await hre.ethers.getContractFactory("ANGEL");
-    angel = await ANGEL.deploy(owner.address);
+    angel = await ANGEL.deploy(mockMultisig.target);
 
     REWARD_MINTER_ROLE = await angel.REWARD_MINTER_ROLE();
     PAUSER_ROLE = await angel.PAUSER_ROLE();
   });
+
+  // Helper function to execute calls through multisig
+  async function executeAsMultisig(targetContract, functionName, ...args) {
+    const calldata = targetContract.interface.encodeFunctionData(functionName, args);
+    return await mockMultisig.execute(targetContract.target, calldata);
+  }
 
   describe("Deployment", function () {
     it("Should have correct name and symbol", async function () {
@@ -33,18 +44,25 @@ describe("ANGEL Token - Community Reward Token", function () {
       expect(maxSupply).to.equal(hre.ethers.parseEther("10000000000"));
     });
 
-    it("Should grant all roles to admin", async function () {
+    it("Should grant all roles to multisig admin", async function () {
       const DEFAULT_ADMIN_ROLE = await angel.DEFAULT_ADMIN_ROLE();
-      expect(await angel.hasRole(DEFAULT_ADMIN_ROLE, owner.address)).to.be.true;
-      expect(await angel.hasRole(REWARD_MINTER_ROLE, owner.address)).to.be.true;
-      expect(await angel.hasRole(PAUSER_ROLE, owner.address)).to.be.true;
+      expect(await angel.hasRole(DEFAULT_ADMIN_ROLE, mockMultisig.target)).to.be.true;
+      expect(await angel.hasRole(REWARD_MINTER_ROLE, mockMultisig.target)).to.be.true;
+      expect(await angel.hasRole(PAUSER_ROLE, mockMultisig.target)).to.be.true;
     });
 
     it("Should revert if deployed with zero address", async function () {
       const ANGEL = await hre.ethers.getContractFactory("ANGEL");
       await expect(
         ANGEL.deploy(hre.ethers.ZeroAddress)
-      ).to.be.revertedWith("Admin address cannot be zero");
+      ).to.be.revertedWithCustomError(angel, "ZeroAddress");
+    });
+
+    it("Should require admin to be a contract", async function () {
+      const ANGEL = await hre.ethers.getContractFactory("ANGEL");
+      await expect(
+        ANGEL.deploy(owner.address)
+      ).to.be.revertedWithCustomError(angel, "AdminMustBeContract");
     });
   });
 
@@ -53,7 +71,7 @@ describe("ANGEL Token - Community Reward Token", function () {
       const amount = hre.ethers.parseEther("1000");
       const reason = "Community engagement reward";
 
-      await angel.rewardMint(user1.address, amount, reason);
+      await executeAsMultisig(angel, "rewardMint", user1.address, amount, reason);
 
       expect(await angel.balanceOf(user1.address)).to.equal(amount);
       expect(await angel.totalMinted()).to.equal(amount);
@@ -64,7 +82,8 @@ describe("ANGEL Token - Community Reward Token", function () {
       const amount = hre.ethers.parseEther("500");
       const reason = "Bug bounty reward";
 
-      await expect(angel.rewardMint(user1.address, amount, reason))
+      const calldata = angel.interface.encodeFunctionData("rewardMint", [user1.address, amount, reason]);
+      await expect(mockMultisig.execute(angel.target, calldata))
         .to.emit(angel, "RewardMint")
         .withArgs(user1.address, amount, reason);
     });
@@ -73,20 +92,20 @@ describe("ANGEL Token - Community Reward Token", function () {
       const amount = hre.ethers.parseEther("100");
 
       await expect(
-        angel.rewardMint(user1.address, amount, "")
-      ).to.be.revertedWith("Reason cannot be empty");
+        executeAsMultisig(angel, "rewardMint", user1.address, amount, "")
+      ).to.be.revertedWithCustomError(angel, "EmptyReason");
     });
 
     it("Should revert if amount is zero", async function () {
       await expect(
-        angel.rewardMint(user1.address, 0, "Test reward")
-      ).to.be.revertedWith("Amount must be greater than 0");
+        executeAsMultisig(angel, "rewardMint", user1.address, 0, "Test reward")
+      ).to.be.revertedWithCustomError(angel, "ZeroAmount");
     });
 
     it("Should revert if recipient is zero address", async function () {
       await expect(
-        angel.rewardMint(hre.ethers.ZeroAddress, hre.ethers.parseEther("100"), "Test")
-      ).to.be.revertedWith("Cannot mint to zero address");
+        executeAsMultisig(angel, "rewardMint", hre.ethers.ZeroAddress, hre.ethers.parseEther("100"), "Test")
+      ).to.be.revertedWithCustomError(angel, "CannotMintToZeroAddress");
     });
 
     it("Should prevent unauthorized minting", async function () {
@@ -108,7 +127,7 @@ describe("ANGEL Token - Community Reward Token", function () {
       ];
       const reason = "Community contest winners";
 
-      await angel.batchRewardMint(recipients, amounts, reason);
+      await executeAsMultisig(angel, "batchRewardMint", recipients, amounts, reason);
 
       expect(await angel.balanceOf(user1.address)).to.equal(amounts[0]);
       expect(await angel.balanceOf(user2.address)).to.equal(amounts[1]);
@@ -126,7 +145,8 @@ describe("ANGEL Token - Community Reward Token", function () {
       ];
       const reason = "Batch reward test";
 
-      await expect(angel.batchRewardMint(recipients, amounts, reason))
+      const calldata = angel.interface.encodeFunctionData("batchRewardMint", [recipients, amounts, reason]);
+      await expect(mockMultisig.execute(angel.target, calldata))
         .to.emit(angel, "RewardMint");
     });
 
@@ -135,14 +155,14 @@ describe("ANGEL Token - Community Reward Token", function () {
       const amounts = [hre.ethers.parseEther("100")];
 
       await expect(
-        angel.batchRewardMint(recipients, amounts, "Mismatch test")
-      ).to.be.revertedWith("Arrays length mismatch");
+        executeAsMultisig(angel, "batchRewardMint", recipients, amounts, "Mismatch test")
+      ).to.be.revertedWithCustomError(angel, "ArrayLengthMismatch");
     });
 
     it("Should revert if arrays are empty", async function () {
       await expect(
-        angel.batchRewardMint([], [], "Empty arrays")
-      ).to.be.revertedWith("Empty arrays");
+        executeAsMultisig(angel, "batchRewardMint", [], [], "Empty arrays")
+      ).to.be.revertedWithCustomError(angel, "EmptyArrays");
     });
 
     it("Should revert if reason is empty in batch mint", async function () {
@@ -150,8 +170,8 @@ describe("ANGEL Token - Community Reward Token", function () {
       const amounts = [hre.ethers.parseEther("100")];
 
       await expect(
-        angel.batchRewardMint(recipients, amounts, "")
-      ).to.be.revertedWith("Reason cannot be empty");
+        executeAsMultisig(angel, "batchRewardMint", recipients, amounts, "")
+      ).to.be.revertedWithCustomError(angel, "EmptyReason");
     });
 
     it("Should handle large batch efficiently", async function () {
@@ -163,7 +183,7 @@ describe("ANGEL Token - Community Reward Token", function () {
         amounts.push(hre.ethers.parseEther("10"));
       }
 
-      await angel.batchRewardMint(recipients, amounts, "Large batch test");
+      await executeAsMultisig(angel, "batchRewardMint", recipients, amounts, "Large batch test");
 
       expect(await angel.balanceOf(user1.address)).to.equal(
         hre.ethers.parseEther("100")
@@ -174,7 +194,7 @@ describe("ANGEL Token - Community Reward Token", function () {
   describe("Hard Cap Enforcement", function () {
     it("Should allow minting up to MAX_SUPPLY", async function () {
       const maxSupply = await angel.MAX_SUPPLY();
-      await angel.rewardMint(user1.address, maxSupply, "Maximum mint");
+      await executeAsMultisig(angel, "rewardMint", user1.address, maxSupply, "Maximum mint");
 
       expect(await angel.totalMinted()).to.equal(maxSupply);
       expect(await angel.balanceOf(user1.address)).to.equal(maxSupply);
@@ -182,16 +202,16 @@ describe("ANGEL Token - Community Reward Token", function () {
 
     it("Should prevent minting beyond MAX_SUPPLY", async function () {
       const maxSupply = await angel.MAX_SUPPLY();
-      await angel.rewardMint(user1.address, maxSupply, "Full supply");
+      await executeAsMultisig(angel, "rewardMint", user1.address, maxSupply, "Full supply");
 
       await expect(
-        angel.rewardMint(user2.address, 1, "Over limit")
-      ).to.be.revertedWith("Minting would exceed max supply");
+        executeAsMultisig(angel, "rewardMint", user2.address, 1, "Over limit")
+      ).to.be.revertedWithCustomError(angel, "ExceedsMaxSupply");
     });
 
     it("Should track remaining mintable supply correctly", async function () {
       const amount = hre.ethers.parseEther("1000000000");
-      await angel.rewardMint(user1.address, amount, "Large mint");
+      await executeAsMultisig(angel, "rewardMint", user1.address, amount, "Large mint");
 
       const remaining = await angel.remainingMintableSupply();
       const maxSupply = await angel.MAX_SUPPLY();
@@ -203,20 +223,20 @@ describe("ANGEL Token - Community Reward Token", function () {
       const maxSupply = await angel.MAX_SUPPLY();
       const halfSupply = maxSupply / 2n;
 
-      await angel.rewardMint(user1.address, halfSupply, "Half supply");
+      await executeAsMultisig(angel, "rewardMint", user1.address, halfSupply, "Half supply");
 
       const recipients = [user2.address, user3.address];
       const amounts = [halfSupply, hre.ethers.parseEther("100")];
 
       await expect(
-        angel.batchRewardMint(recipients, amounts, "Over cap batch")
-      ).to.be.revertedWith("Minting would exceed max supply");
+        executeAsMultisig(angel, "batchRewardMint", recipients, amounts, "Over cap batch")
+      ).to.be.revertedWithCustomError(angel, "ExceedsMaxSupply");
     });
   });
 
   describe("Burn Functionality", function () {
     beforeEach(async function () {
-      await angel.rewardMint(user1.address, hre.ethers.parseEther("10000"), "Test mint");
+      await executeAsMultisig(angel, "rewardMint", user1.address, hre.ethers.parseEther("10000"), "Test mint");
     });
 
     it("Should allow users to burn their own tokens", async function () {
@@ -271,37 +291,41 @@ describe("ANGEL Token - Community Reward Token", function () {
 
     it("Should verify burn does not increase mintable capacity scenario", async function () {
       const ANGEL = await hre.ethers.getContractFactory("ANGEL");
-      const freshAngel = await ANGEL.deploy(owner.address);
+      const MockMultisig = await hre.ethers.getContractFactory("MockMultisig");
+      const freshMultisig = await MockMultisig.deploy(owner.address);
+      const freshAngel = await ANGEL.deploy(freshMultisig.target);
 
       const maxSupply = await freshAngel.MAX_SUPPLY();
 
-      await freshAngel.rewardMint(user1.address, maxSupply, "Full mint");
+      const mintCalldata = freshAngel.interface.encodeFunctionData("rewardMint", [user1.address, maxSupply, "Full mint"]);
+      await freshMultisig.execute(freshAngel.target, mintCalldata);
 
       expect(await freshAngel.totalMinted()).to.equal(maxSupply);
 
       await freshAngel.connect(user1).burn(hre.ethers.parseEther("1000000"));
 
+      const failCalldata = freshAngel.interface.encodeFunctionData("rewardMint", [user2.address, 1, "Should fail"]);
       await expect(
-        freshAngel.rewardMint(user2.address, 1, "Should fail")
-      ).to.be.revertedWith("Minting would exceed max supply");
+        freshMultisig.execute(freshAngel.target, failCalldata)
+      ).to.be.revertedWithCustomError(angel, "ExceedsMaxSupply");
     });
   });
 
   describe("Pause Functionality", function () {
     it("Should allow PAUSER_ROLE to pause contract", async function () {
-      await angel.pause();
+      await executeAsMultisig(angel, "pause");
       expect(await angel.paused()).to.be.true;
     });
 
     it("Should allow PAUSER_ROLE to unpause contract", async function () {
-      await angel.pause();
-      await angel.unpause();
+      await executeAsMultisig(angel, "pause");
+      await executeAsMultisig(angel, "unpause");
       expect(await angel.paused()).to.be.false;
     });
 
     it("Should prevent transfers when paused", async function () {
-      await angel.rewardMint(user1.address, hre.ethers.parseEther("1000"), "Test");
-      await angel.pause();
+      await executeAsMultisig(angel, "rewardMint", user1.address, hre.ethers.parseEther("1000"), "Test");
+      await executeAsMultisig(angel, "pause");
 
       await expect(
         angel.connect(user1).transfer(user2.address, hre.ethers.parseEther("100"))
@@ -309,21 +333,21 @@ describe("ANGEL Token - Community Reward Token", function () {
     });
 
     it("Should prevent minting when paused", async function () {
-      await angel.pause();
+      await executeAsMultisig(angel, "pause");
 
       await expect(
-        angel.rewardMint(user1.address, hre.ethers.parseEther("1000"), "Test")
+        executeAsMultisig(angel, "rewardMint", user1.address, hre.ethers.parseEther("1000"), "Test")
       ).to.be.revertedWith("Pausable: paused");
     });
 
     it("Should prevent batch minting when paused", async function () {
-      await angel.pause();
+      await executeAsMultisig(angel, "pause");
 
       const recipients = [user1.address, user2.address];
       const amounts = [hre.ethers.parseEther("100"), hre.ethers.parseEther("200")];
 
       await expect(
-        angel.batchRewardMint(recipients, amounts, "Paused test")
+        executeAsMultisig(angel, "batchRewardMint", recipients, amounts, "Paused test")
       ).to.be.revertedWith("Pausable: paused");
     });
 
@@ -334,9 +358,9 @@ describe("ANGEL Token - Community Reward Token", function () {
     });
 
     it("Should allow transfers after unpausing", async function () {
-      await angel.rewardMint(user1.address, hre.ethers.parseEther("1000"), "Test");
-      await angel.pause();
-      await angel.unpause();
+      await executeAsMultisig(angel, "rewardMint", user1.address, hre.ethers.parseEther("1000"), "Test");
+      await executeAsMultisig(angel, "pause");
+      await executeAsMultisig(angel, "unpause");
 
       await angel.connect(user1).transfer(user2.address, hre.ethers.parseEther("100"));
       expect(await angel.balanceOf(user2.address)).to.equal(hre.ethers.parseEther("100"));
@@ -345,12 +369,12 @@ describe("ANGEL Token - Community Reward Token", function () {
 
   describe("Access Control", function () {
     it("Should allow admin to grant REWARD_MINTER_ROLE", async function () {
-      await angel.grantRole(REWARD_MINTER_ROLE, user1.address);
+      await executeAsMultisig(angel, "grantRole", REWARD_MINTER_ROLE, user1.address);
       expect(await angel.hasRole(REWARD_MINTER_ROLE, user1.address)).to.be.true;
     });
 
     it("Should allow new minter to mint after role granted", async function () {
-      await angel.grantRole(REWARD_MINTER_ROLE, user1.address);
+      await executeAsMultisig(angel, "grantRole", REWARD_MINTER_ROLE, user1.address);
 
       await angel.connect(user1).rewardMint(
         user2.address,
@@ -362,15 +386,15 @@ describe("ANGEL Token - Community Reward Token", function () {
     });
 
     it("Should allow admin to revoke REWARD_MINTER_ROLE", async function () {
-      await angel.grantRole(REWARD_MINTER_ROLE, user1.address);
-      await angel.revokeRole(REWARD_MINTER_ROLE, user1.address);
+      await executeAsMultisig(angel, "grantRole", REWARD_MINTER_ROLE, user1.address);
+      await executeAsMultisig(angel, "revokeRole", REWARD_MINTER_ROLE, user1.address);
 
       expect(await angel.hasRole(REWARD_MINTER_ROLE, user1.address)).to.be.false;
     });
 
     it("Should prevent minting after role revoked", async function () {
-      await angel.grantRole(REWARD_MINTER_ROLE, user1.address);
-      await angel.revokeRole(REWARD_MINTER_ROLE, user1.address);
+      await executeAsMultisig(angel, "grantRole", REWARD_MINTER_ROLE, user1.address);
+      await executeAsMultisig(angel, "revokeRole", REWARD_MINTER_ROLE, user1.address);
 
       await expect(
         angel.connect(user1).rewardMint(user2.address, hre.ethers.parseEther("100"), "Test")
@@ -390,7 +414,7 @@ describe("ANGEL Token - Community Reward Token", function () {
       expect(await angel.canMint(amount)).to.be.true;
 
       const maxSupply = await angel.MAX_SUPPLY();
-      await angel.rewardMint(user1.address, maxSupply, "Max mint");
+      await executeAsMultisig(angel, "rewardMint", user1.address, maxSupply, "Max mint");
 
       expect(await angel.canMint(1)).to.be.false;
     });
@@ -400,14 +424,14 @@ describe("ANGEL Token - Community Reward Token", function () {
       expect(await angel.remainingMintableSupply()).to.equal(maxSupply);
 
       const mintAmount = hre.ethers.parseEther("1000000000");
-      await angel.rewardMint(user1.address, mintAmount, "Large mint");
+      await executeAsMultisig(angel, "rewardMint", user1.address, mintAmount, "Large mint");
 
       expect(await angel.remainingMintableSupply()).to.equal(maxSupply - mintAmount);
     });
 
     it("Should show difference between totalSupply and totalMinted after burn", async function () {
       const mintAmount = hre.ethers.parseEther("10000");
-      await angel.rewardMint(user1.address, mintAmount, "Test mint");
+      await executeAsMultisig(angel, "rewardMint", user1.address, mintAmount, "Test mint");
 
       const burnAmount = hre.ethers.parseEther("3000");
       await angel.connect(user1).burn(burnAmount);
@@ -419,7 +443,7 @@ describe("ANGEL Token - Community Reward Token", function () {
 
   describe("Standard ERC20 Functions", function () {
     beforeEach(async function () {
-      await angel.rewardMint(user1.address, hre.ethers.parseEther("10000"), "Setup");
+      await executeAsMultisig(angel, "rewardMint", user1.address, hre.ethers.parseEther("10000"), "Setup");
     });
 
     it("Should allow standard transfers", async function () {
@@ -449,21 +473,21 @@ describe("ANGEL Token - Community Reward Token", function () {
 
   describe("Edge Cases", function () {
     it("Should handle multiple mints to same address", async function () {
-      await angel.rewardMint(user1.address, hre.ethers.parseEther("100"), "First");
-      await angel.rewardMint(user1.address, hre.ethers.parseEther("200"), "Second");
-      await angel.rewardMint(user1.address, hre.ethers.parseEther("300"), "Third");
+      await executeAsMultisig(angel, "rewardMint", user1.address, hre.ethers.parseEther("100"), "First");
+      await executeAsMultisig(angel, "rewardMint", user1.address, hre.ethers.parseEther("200"), "Second");
+      await executeAsMultisig(angel, "rewardMint", user1.address, hre.ethers.parseEther("300"), "Third");
 
       expect(await angel.balanceOf(user1.address)).to.equal(hre.ethers.parseEther("600"));
     });
 
     it("Should handle very small amounts", async function () {
-      await angel.rewardMint(user1.address, 1, "Tiny amount");
+      await executeAsMultisig(angel, "rewardMint", user1.address, 1, "Tiny amount");
       expect(await angel.balanceOf(user1.address)).to.equal(1);
     });
 
     it("Should handle long reason strings", async function () {
       const longReason = "A".repeat(1000);
-      await angel.rewardMint(user1.address, hre.ethers.parseEther("100"), longReason);
+      await executeAsMultisig(angel, "rewardMint", user1.address, hre.ethers.parseEther("100"), longReason);
       expect(await angel.balanceOf(user1.address)).to.equal(hre.ethers.parseEther("100"));
     });
   });
