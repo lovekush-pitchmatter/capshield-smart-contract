@@ -6,8 +6,12 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
-    "deploy:testnet": "npx hardhat run scripts/deploy.js --network testnet",
-    "verify:testnet": "npx hardhat run scripts/verify.js --network testnet"
+    "test:coverage": "npx hardhat coverage",
+    "clean": "npx hardhat clean",
+    "deploy:sepolia": "npx hardhat run scripts/deploy.js --network sepolia",
+    "deploy:mumbai": "npx hardhat run scripts/deploy.js --network mumbai",
+    "deploy:bscTestnet": "npx hardhat run scripts/deploy.js --network bscTestnet",
+    "deploy:bscMainnet": "npx hardhat run scripts/deploy.js --network bscMainnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",

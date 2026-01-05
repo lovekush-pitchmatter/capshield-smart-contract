@@ -3,20 +3,31 @@ const hre = require("hardhat");
 
 describe("CAPX Token - Shield Token", function () {
   let capx;
+  let mockMultisig;
   let owner, treasury, dao, team, user1, user2, user3;
   let TEAM_MINTER_ROLE, TREASURY_MINTER_ROLE, DAO_MINTER_ROLE, PAUSER_ROLE;
 
   beforeEach(async function () {
     [owner, treasury, dao, team, user1, user2, user3] = await hre.ethers.getSigners();
 
+    // Deploy MockMultisig first
+    const MockMultisig = await hre.ethers.getContractFactory("MockMultisig");
+    mockMultisig = await MockMultisig.deploy(owner.address);
+
     const CAPX = await hre.ethers.getContractFactory("CAPX");
-    capx = await CAPX.deploy(treasury.address, dao.address, owner.address);
+    capx = await CAPX.deploy(treasury.address, dao.address, mockMultisig.target);
 
     TEAM_MINTER_ROLE = await capx.TEAM_MINTER_ROLE();
     TREASURY_MINTER_ROLE = await capx.TREASURY_MINTER_ROLE();
     DAO_MINTER_ROLE = await capx.DAO_MINTER_ROLE();
     PAUSER_ROLE = await capx.PAUSER_ROLE();
   });
+
+  // Helper function to execute calls through multisig
+  async function executeAsMultisig(targetContract, functionName, ...args) {
+    const calldata = targetContract.interface.encodeFunctionData(functionName, args);
+    return await mockMultisig.execute(targetContract.target, calldata);
+  }
 
   describe("Deployment", function () {
     it("Should have correct name and symbol", async function () {
@@ -45,20 +56,27 @@ describe("CAPX Token - Shield Token", function () {
       expect(await capx.isExemptFromFees(dao.address)).to.be.true;
     });
 
-    it("Should grant all roles to admin", async function () {
+    it("Should grant all roles to multisig admin", async function () {
       const DEFAULT_ADMIN_ROLE = await capx.DEFAULT_ADMIN_ROLE();
-      expect(await capx.hasRole(DEFAULT_ADMIN_ROLE, owner.address)).to.be.true;
-      expect(await capx.hasRole(TEAM_MINTER_ROLE, owner.address)).to.be.true;
-      expect(await capx.hasRole(TREASURY_MINTER_ROLE, owner.address)).to.be.true;
-      expect(await capx.hasRole(DAO_MINTER_ROLE, owner.address)).to.be.true;
-      expect(await capx.hasRole(PAUSER_ROLE, owner.address)).to.be.true;
+      expect(await capx.hasRole(DEFAULT_ADMIN_ROLE, mockMultisig.target)).to.be.true;
+      expect(await capx.hasRole(TEAM_MINTER_ROLE, mockMultisig.target)).to.be.true;
+      expect(await capx.hasRole(TREASURY_MINTER_ROLE, mockMultisig.target)).to.be.true;
+      expect(await capx.hasRole(DAO_MINTER_ROLE, mockMultisig.target)).to.be.true;
+      expect(await capx.hasRole(PAUSER_ROLE, mockMultisig.target)).to.be.true;
+    });
+
+    it("Should require admin to be a contract", async function () {
+      const CAPX = await hre.ethers.getContractFactory("CAPX");
+      await expect(
+        CAPX.deploy(treasury.address, dao.address, owner.address)
+      ).to.be.revertedWithCustomError(capx, "AdminMustBeContract");
     });
   });
 
   describe("Role-Based Minting", function () {
     it("Should allow TEAM_MINTER_ROLE to mint tokens", async function () {
       const amount = hre.ethers.parseEther("1000");
-      await capx.teamMint(user1.address, amount);
+      await executeAsMultisig(capx, "teamMint", user1.address, amount);
 
       expect(await capx.balanceOf(user1.address)).to.equal(amount);
       expect(await capx.totalMinted()).to.equal(amount);
@@ -66,7 +84,7 @@ describe("CAPX Token - Shield Token", function () {
 
     it("Should allow TREASURY_MINTER_ROLE to mint tokens", async function () {
       const amount = hre.ethers.parseEther("5000");
-      await capx.treasuryMint(user1.address, amount);
+      await executeAsMultisig(capx, "treasuryMint", user1.address, amount);
 
       expect(await capx.balanceOf(user1.address)).to.equal(amount);
       expect(await capx.totalMinted()).to.equal(amount);
@@ -74,7 +92,7 @@ describe("CAPX Token - Shield Token", function () {
 
     it("Should allow DAO_MINTER_ROLE to mint tokens", async function () {
       const amount = hre.ethers.parseEther("2000");
-      await capx.daoMint(user1.address, amount);
+      await executeAsMultisig(capx, "daoMint", user1.address, amount);
 
       expect(await capx.balanceOf(user1.address)).to.equal(amount);
       expect(await capx.totalMinted()).to.equal(amount);
@@ -100,7 +118,7 @@ describe("CAPX Token - Shield Token", function () {
   describe("Hard Cap Enforcement", function () {
     it("Should allow minting up to MAX_SUPPLY", async function () {
       const maxSupply = await capx.MAX_SUPPLY();
-      await capx.teamMint(user1.address, maxSupply);
+      await executeAsMultisig(capx, "teamMint", user1.address, maxSupply);
 
       expect(await capx.totalMinted()).to.equal(maxSupply);
       expect(await capx.balanceOf(user1.address)).to.equal(maxSupply);
@@ -108,16 +126,16 @@ describe("CAPX Token - Shield Token", function () {
 
     it("Should prevent minting beyond MAX_SUPPLY", async function () {
       const maxSupply = await capx.MAX_SUPPLY();
-      await capx.teamMint(user1.address, maxSupply);
+      await executeAsMultisig(capx, "teamMint", user1.address, maxSupply);
 
       await expect(
-        capx.teamMint(user2.address, 1)
-      ).to.be.revertedWith("Minting would exceed max supply");
+        executeAsMultisig(capx, "teamMint", user2.address, 1)
+      ).to.be.revertedWithCustomError(capx, "ExceedsMaxSupply");
     });
 
     it("Should track remaining mintable supply correctly", async function () {
       const amount = hre.ethers.parseEther("10000000");
-      await capx.teamMint(user1.address, amount);
+      await executeAsMultisig(capx, "teamMint", user1.address, amount);
 
       const remaining = await capx.remainingMintableSupply();
       const maxSupply = await capx.MAX_SUPPLY();
@@ -127,7 +145,7 @@ describe("CAPX Token - Shield Token", function () {
 
     it("Should not allow burning to increase mint capacity", async function () {
       const amount = hre.ethers.parseEther("1000");
-      await capx.teamMint(user1.address, amount);
+      await executeAsMultisig(capx, "teamMint", user1.address, amount);
 
       const mintedBefore = await capx.totalMinted();
 
@@ -143,7 +161,7 @@ describe("CAPX Token - Shield Token", function () {
       const revenue = hre.ethers.parseEther("10000");
       const marketValue = hre.ethers.parseEther("1");
 
-      await capx.revenueMint(user1.address, revenue, marketValue);
+      await executeAsMultisig(capx, "revenueMint", user1.address, revenue, marketValue);
 
       const expectedAmount = (revenue * hre.ethers.parseEther("1")) / marketValue;
       expect(await capx.balanceOf(user1.address)).to.equal(expectedAmount);
@@ -154,21 +172,22 @@ describe("CAPX Token - Shield Token", function () {
       const marketValue = hre.ethers.parseEther("1");
       const expectedAmount = (revenue * hre.ethers.parseEther("1")) / marketValue;
 
-      await expect(capx.revenueMint(user1.address, revenue, marketValue))
+      const calldata = capx.interface.encodeFunctionData("revenueMint", [user1.address, revenue, marketValue]);
+      await expect(mockMultisig.execute(capx.target, calldata))
         .to.emit(capx, "RevenueMint")
         .withArgs(user1.address, expectedAmount, revenue, marketValue);
     });
 
     it("Should revert if revenue is zero", async function () {
       await expect(
-        capx.revenueMint(user1.address, 0, hre.ethers.parseEther("1"))
-      ).to.be.revertedWith("Revenue must be greater than 0");
+        executeAsMultisig(capx, "revenueMint", user1.address, 0, hre.ethers.parseEther("1"))
+      ).to.be.revertedWithCustomError(capx, "ZeroRevenue");
     });
 
     it("Should revert if market value is zero", async function () {
       await expect(
-        capx.revenueMint(user1.address, hre.ethers.parseEther("1000"), 0)
-      ).to.be.revertedWith("Market value must be greater than 0");
+        executeAsMultisig(capx, "revenueMint", user1.address, hre.ethers.parseEther("1000"), 0)
+      ).to.be.revertedWithCustomError(capx, "ZeroMarketValue");
     });
 
     it("Should respect hard cap in revenue minting", async function () {
@@ -177,14 +196,14 @@ describe("CAPX Token - Shield Token", function () {
       const marketValue = hre.ethers.parseEther("1");
 
       await expect(
-        capx.revenueMint(user1.address, revenue, marketValue)
-      ).to.be.revertedWith("Minting would exceed max supply");
+        executeAsMultisig(capx, "revenueMint", user1.address, revenue, marketValue)
+      ).to.be.revertedWithCustomError(capx, "ExceedsMaxSupply");
     });
   });
 
   describe("Transfer Hooks (1% Burn + 1% Treasury)", function () {
     beforeEach(async function () {
-      await capx.teamMint(user1.address, hre.ethers.parseEther("10000"));
+      await executeAsMultisig(capx, "teamMint", user1.address, hre.ethers.parseEther("10000"));
     });
 
     it("Should apply 1% burn and 1% treasury fee on transfers", async function () {
@@ -214,7 +233,7 @@ describe("CAPX Token - Shield Token", function () {
     });
 
     it("Should exempt treasury from fees", async function () {
-      await capx.teamMint(treasury.address, hre.ethers.parseEther("1000"));
+      await executeAsMultisig(capx, "teamMint", treasury.address, hre.ethers.parseEther("1000"));
 
       const transferAmount = hre.ethers.parseEther("500");
       await capx.connect(treasury).transfer(user1.address, transferAmount);
@@ -225,7 +244,7 @@ describe("CAPX Token - Shield Token", function () {
     });
 
     it("Should exempt DAO from fees", async function () {
-      await capx.teamMint(dao.address, hre.ethers.parseEther("1000"));
+      await executeAsMultisig(capx, "teamMint", dao.address, hre.ethers.parseEther("1000"));
 
       const transferAmount = hre.ethers.parseEther("500");
       await capx.connect(dao).transfer(user1.address, transferAmount);
@@ -238,15 +257,16 @@ describe("CAPX Token - Shield Token", function () {
 
   describe("Exemption Management", function () {
     it("Should allow admin to set exemptions", async function () {
-      await capx.setExemption(user1.address, true);
+      await executeAsMultisig(capx, "setExemption", user1.address, true);
       expect(await capx.isExemptFromFees(user1.address)).to.be.true;
 
-      await capx.setExemption(user1.address, false);
+      await executeAsMultisig(capx, "setExemption", user1.address, false);
       expect(await capx.isExemptFromFees(user1.address)).to.be.false;
     });
 
     it("Should emit ExemptionUpdated event", async function () {
-      await expect(capx.setExemption(user1.address, true))
+      const calldata = capx.interface.encodeFunctionData("setExemption", [user1.address, true]);
+      await expect(mockMultisig.execute(capx.target, calldata))
         .to.emit(capx, "ExemptionUpdated")
         .withArgs(user1.address, true);
     });
@@ -260,7 +280,8 @@ describe("CAPX Token - Shield Token", function () {
 
   describe("Address Updates", function () {
     it("Should allow admin to update treasury address", async function () {
-      await expect(capx.updateTreasuryAddress(user3.address))
+      const calldata = capx.interface.encodeFunctionData("updateTreasuryAddress", [user3.address]);
+      await expect(mockMultisig.execute(capx.target, calldata))
         .to.emit(capx, "TreasuryAddressUpdated")
         .withArgs(treasury.address, user3.address);
 
@@ -270,7 +291,8 @@ describe("CAPX Token - Shield Token", function () {
     });
 
     it("Should allow admin to update DAO address", async function () {
-      await expect(capx.updateDAOAddress(user3.address))
+      const calldata = capx.interface.encodeFunctionData("updateDAOAddress", [user3.address]);
+      await expect(mockMultisig.execute(capx.target, calldata))
         .to.emit(capx, "DAOAddressUpdated")
         .withArgs(dao.address, user3.address);
 
@@ -281,30 +303,30 @@ describe("CAPX Token - Shield Token", function () {
 
     it("Should prevent updating to zero address", async function () {
       await expect(
-        capx.updateTreasuryAddress(hre.ethers.ZeroAddress)
-      ).to.be.revertedWith("Treasury address cannot be zero");
+        executeAsMultisig(capx, "updateTreasuryAddress", hre.ethers.ZeroAddress)
+      ).to.be.revertedWithCustomError(capx, "ZeroAddress");
 
       await expect(
-        capx.updateDAOAddress(hre.ethers.ZeroAddress)
-      ).to.be.revertedWith("DAO address cannot be zero");
+        executeAsMultisig(capx, "updateDAOAddress", hre.ethers.ZeroAddress)
+      ).to.be.revertedWithCustomError(capx, "ZeroAddress");
     });
   });
 
   describe("Pause Functionality", function () {
     it("Should allow PAUSER_ROLE to pause contract", async function () {
-      await capx.pause();
+      await executeAsMultisig(capx, "pause");
       expect(await capx.paused()).to.be.true;
     });
 
     it("Should allow PAUSER_ROLE to unpause contract", async function () {
-      await capx.pause();
-      await capx.unpause();
+      await executeAsMultisig(capx, "pause");
+      await executeAsMultisig(capx, "unpause");
       expect(await capx.paused()).to.be.false;
     });
 
     it("Should prevent transfers when paused", async function () {
-      await capx.teamMint(user1.address, hre.ethers.parseEther("1000"));
-      await capx.pause();
+      await executeAsMultisig(capx, "teamMint", user1.address, hre.ethers.parseEther("1000"));
+      await executeAsMultisig(capx, "pause");
 
       await expect(
         capx.connect(user1).transfer(user2.address, hre.ethers.parseEther("100"))
@@ -312,10 +334,10 @@ describe("CAPX Token - Shield Token", function () {
     });
 
     it("Should prevent minting when paused", async function () {
-      await capx.pause();
+      await executeAsMultisig(capx, "pause");
 
       await expect(
-        capx.teamMint(user1.address, hre.ethers.parseEther("1000"))
+        executeAsMultisig(capx, "teamMint", user1.address, hre.ethers.parseEther("1000"))
       ).to.be.revertedWith("Pausable: paused");
     });
 
@@ -328,7 +350,7 @@ describe("CAPX Token - Shield Token", function () {
 
   describe("Burn Functionality", function () {
     beforeEach(async function () {
-      await capx.teamMint(user1.address, hre.ethers.parseEther("10000"));
+      await executeAsMultisig(capx, "teamMint", user1.address, hre.ethers.parseEther("10000"));
     });
 
     it("Should allow users to burn their own tokens", async function () {
@@ -366,7 +388,7 @@ describe("CAPX Token - Shield Token", function () {
       expect(await capx.canMint(amount)).to.be.true;
 
       const maxSupply = await capx.MAX_SUPPLY();
-      await capx.teamMint(user1.address, maxSupply);
+      await executeAsMultisig(capx, "teamMint", user1.address, maxSupply);
 
       expect(await capx.canMint(1)).to.be.false;
     });
@@ -376,7 +398,7 @@ describe("CAPX Token - Shield Token", function () {
       expect(await capx.remainingMintableSupply()).to.equal(maxSupply);
 
       const mintAmount = hre.ethers.parseEther("10000000");
-      await capx.teamMint(user1.address, mintAmount);
+      await executeAsMultisig(capx, "teamMint", user1.address, mintAmount);
 
       expect(await capx.remainingMintableSupply()).to.equal(maxSupply - mintAmount);
     });
