@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.30;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
@@ -19,9 +19,24 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * - Burnable tokens
  */
 contract ANGEL is ERC20, ERC20Burnable, Pausable, AccessControl {
+    ///////////////// ERRORS /////////////////
+
+    error ZeroAddress();
+    error AdminMustBeContract();
+    error ExceedsMaxSupply();
+    error ZeroAmount();
+    error EmptyReason();
+    error ArrayLengthMismatch();
+    error EmptyArrays();
+    error CannotMintToZeroAddress();
+
+    ///////////////// ROLE DEFINITIONS /////////////////
+
     // Role definitions
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant REWARD_MINTER_ROLE = keccak256("REWARD_MINTER_ROLE");
+
+    ///////////////// STATE VARIABLES /////////////////
 
     // Token parameters
     uint8 private constant _DECIMALS = 18;
@@ -30,21 +45,44 @@ contract ANGEL is ERC20, ERC20Burnable, Pausable, AccessControl {
     // Total minted tracking (irreversible cap enforcement)
     uint256 public totalMinted;
 
-    // Events
+    ///////////////// EVENTS /////////////////
+
     event RewardMint(address indexed to, uint256 amount, string reason);
 
+    ///////////////// CONSTRUCTOR /////////////////
+
     /**
-     * @dev Constructor - initializes with zero supply
-     * @param _adminAddress Multisig admin address
+     * @notice Constructor - initializes with zero supply
+     * @param _adminAddress Multisig admin address (must be a contract)
      */
     constructor(address _adminAddress) ERC20("AngleSeed Token", "SEED") {
-        require(_adminAddress != address(0), "Admin address cannot be zero");
+        require(_adminAddress != address(0), ZeroAddress());
+
+        // This prevents single EOA from having full control over the token
+        require(_isContract(_adminAddress), AdminMustBeContract());
 
         // Grant roles to admin (multisig)
         _grantRole(DEFAULT_ADMIN_ROLE, _adminAddress);
         _grantRole(PAUSER_ROLE, _adminAddress);
         _grantRole(REWARD_MINTER_ROLE, _adminAddress);
     }
+
+    ///////////////// INTERNAL FUNCTIONS /////////////////
+
+    /**
+     * @notice Check if an address is a contract
+     * @param account Address to check
+     * @return True if the address has code (is a contract)
+     */
+    function _isContract(address account) internal view returns (bool) {
+        uint256 size;
+        assembly {
+            size := extcodesize(account)
+        }
+        return size > 0;
+    }
+
+    ///////////////// GETTER FUNCTIONS /////////////////
 
     /**
      * @dev Returns decimals
@@ -64,7 +102,7 @@ contract ANGEL is ERC20, ERC20Burnable, Pausable, AccessControl {
         uint256 amount,
         string calldata reason
     ) external onlyRole(REWARD_MINTER_ROLE) whenNotPaused {
-        require(bytes(reason).length > 0, "Reason cannot be empty");
+        require(bytes(reason).length > 0, EmptyReason());
         _mintWithCapCheck(to, amount);
         emit RewardMint(to, amount, reason);
     }
@@ -80,13 +118,14 @@ contract ANGEL is ERC20, ERC20Burnable, Pausable, AccessControl {
         uint256[] calldata amounts,
         string calldata reason
     ) external onlyRole(REWARD_MINTER_ROLE) whenNotPaused {
-        require(recipients.length == amounts.length, "Arrays length mismatch");
-        require(recipients.length > 0, "Empty arrays");
-        require(bytes(reason).length > 0, "Reason cannot be empty");
+        require(recipients.length == amounts.length, ArrayLengthMismatch());
+        require(recipients.length > 0, EmptyArrays());
+        require(bytes(reason).length > 0, EmptyReason());
 
-        for (uint256 i = 0; i < recipients.length; i++) {
+        for (uint256 i; i < recipients.length;) {
             _mintWithCapCheck(recipients[i], amounts[i]);
             emit RewardMint(recipients[i], amounts[i], reason);
+            unchecked { ++i; }
         }
     }
 
@@ -96,9 +135,9 @@ contract ANGEL is ERC20, ERC20Burnable, Pausable, AccessControl {
      * @param amount Amount to mint
      */
     function _mintWithCapCheck(address to, uint256 amount) private {
-        require(to != address(0), "Cannot mint to zero address");
-        require(amount > 0, "Amount must be greater than 0");
-        require(totalMinted + amount <= MAX_SUPPLY, "Minting would exceed max supply");
+        require(to != address(0), CannotMintToZeroAddress());
+        require(amount > 0, ZeroAmount());
+        require(totalMinted + amount <= MAX_SUPPLY, ExceedsMaxSupply());
 
         totalMinted += amount;
         _mint(to, amount);
