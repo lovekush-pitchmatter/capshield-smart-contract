@@ -4,6 +4,7 @@ const hre = require("hardhat");
 describe("CAPX Token - Shield Token", function () {
   let capx;
   let mockMultisig;
+  let mockV3Aggregator;
   let owner, treasury, dao, team, user1, user2, user3;
   let TEAM_MINTER_ROLE, TREASURY_MINTER_ROLE, DAO_MINTER_ROLE, PAUSER_ROLE;
 
@@ -14,8 +15,13 @@ describe("CAPX Token - Shield Token", function () {
     const MockMultisig = await hre.ethers.getContractFactory("MockMultisig");
     mockMultisig = await MockMultisig.deploy(owner.address);
 
+    // Deploy MockV3Aggregator (Price $1.00 = 100000000)
+    const MockV3Aggregator = await hre.ethers.getContractFactory("MockV3Aggregator");
+    // Decimals: 8, Initial Answer: $1.00 (100000000)
+    mockV3Aggregator = await MockV3Aggregator.deploy(8, 100000000);
+
     const CAPX = await hre.ethers.getContractFactory("CAPX");
-    capx = await CAPX.deploy(treasury.address, dao.address, mockMultisig.target);
+    capx = await CAPX.deploy(treasury.address, dao.address, mockMultisig.target, mockV3Aggregator.target);
 
     TEAM_MINTER_ROLE = await capx.TEAM_MINTER_ROLE();
     TREASURY_MINTER_ROLE = await capx.TREASURY_MINTER_ROLE();
@@ -68,7 +74,7 @@ describe("CAPX Token - Shield Token", function () {
     it("Should require admin to be a contract", async function () {
       const CAPX = await hre.ethers.getContractFactory("CAPX");
       await expect(
-        CAPX.deploy(treasury.address, dao.address, owner.address)
+        CAPX.deploy(treasury.address, dao.address, owner.address, mockV3Aggregator.target)
       ).to.be.revertedWithCustomError(capx, "AdminMustBeContract");
     });
   });
@@ -159,9 +165,10 @@ describe("CAPX Token - Shield Token", function () {
   describe("Revenue-Based Minting", function () {
     it("Should mint tokens based on revenue formula", async function () {
       const revenue = hre.ethers.parseEther("10000");
+      // Market Value is $1 (from Oracle mock default)
       const marketValue = hre.ethers.parseEther("1");
 
-      await executeAsMultisig(capx, "revenueMint", user1.address, revenue, marketValue);
+      await executeAsMultisig(capx, "revenueMint", user1.address, revenue);
 
       const expectedAmount = (revenue * hre.ethers.parseEther("1")) / marketValue;
       expect(await capx.balanceOf(user1.address)).to.equal(expectedAmount);
@@ -169,10 +176,11 @@ describe("CAPX Token - Shield Token", function () {
 
     it("Should emit RevenueMint event", async function () {
       const revenue = hre.ethers.parseEther("5000");
+      // Market value is $1 from mock
       const marketValue = hre.ethers.parseEther("1");
       const expectedAmount = (revenue * hre.ethers.parseEther("1")) / marketValue;
 
-      const calldata = capx.interface.encodeFunctionData("revenueMint", [user1.address, revenue, marketValue]);
+      const calldata = capx.interface.encodeFunctionData("revenueMint", [user1.address, revenue]);
       await expect(mockMultisig.execute(capx.target, calldata))
         .to.emit(capx, "RevenueMint")
         .withArgs(user1.address, expectedAmount, revenue, marketValue);
@@ -180,15 +188,11 @@ describe("CAPX Token - Shield Token", function () {
 
     it("Should revert if revenue is zero", async function () {
       await expect(
-        executeAsMultisig(capx, "revenueMint", user1.address, 0, hre.ethers.parseEther("1"))
+        executeAsMultisig(capx, "revenueMint", user1.address, 0)
       ).to.be.revertedWithCustomError(capx, "ZeroRevenue");
     });
 
-    it("Should revert if market value is zero", async function () {
-      await expect(
-        executeAsMultisig(capx, "revenueMint", user1.address, hre.ethers.parseEther("1000"), 0)
-      ).to.be.revertedWithCustomError(capx, "ZeroMarketValue");
-    });
+
 
     it("Should respect hard cap in revenue minting", async function () {
       const maxSupply = await capx.MAX_SUPPLY();
@@ -196,7 +200,7 @@ describe("CAPX Token - Shield Token", function () {
       const marketValue = hre.ethers.parseEther("1");
 
       await expect(
-        executeAsMultisig(capx, "revenueMint", user1.address, revenue, marketValue)
+        executeAsMultisig(capx, "revenueMint", user1.address, revenue)
       ).to.be.revertedWithCustomError(capx, "ExceedsMaxSupply");
     });
   });
