@@ -74,7 +74,7 @@ describe("CAPX Token - Automation (Keepers)", function () {
       await capx.performUpkeep("0x");
 
       // Verify pending revenue reset
-      expect(await capx.pendingRevenue()).to.equal(0);
+      expect(await capx.pendingRevenue()).to.equal(0n);
 
       // Verify tokens minted (Price $1 => 1000 tokens)
       const expectedMint = hre.ethers.parseEther("1000");

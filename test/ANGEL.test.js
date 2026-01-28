@@ -31,12 +31,12 @@ describe("ANGEL Token - Community Reward Token", function () {
     it("Should have correct name and symbol", async function () {
       expect(await angel.name()).to.equal("AngleSeed Token");
       expect(await angel.symbol()).to.equal("SEED");
-      expect(Number(await angel.decimals())).to.equal(18);
+      expect(Number(await angel.decimals())).to.equal(18n);
     });
 
     it("Should start with zero total supply", async function () {
-      expect(Number(await angel.totalSupply())).to.equal(0);
-      expect(Number(await angel.totalMinted())).to.equal(0);
+      expect(Number(await angel.totalSupply())).to.equal(0n);
+      expect(Number(await angel.totalMinted())).to.equal(0n);
     });
 
     it("Should have correct MAX_SUPPLY (10 Billion)", async function () {
@@ -482,7 +482,7 @@ describe("ANGEL Token - Community Reward Token", function () {
 
     it("Should handle very small amounts", async function () {
       await executeAsMultisig(angel, "rewardMint", user1.address, 1, "Tiny amount");
-      expect(Number(await angel.balanceOf(user1.address))).to.equal(1);
+      expect(Number(await angel.balanceOf(user1.address))).to.equal(1n);
     });
 
     it("Should handle long reason strings", async function () {

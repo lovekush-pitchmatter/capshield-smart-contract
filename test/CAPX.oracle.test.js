@@ -100,13 +100,13 @@ describe("CAPX Token - Chainlink Oracle Integration", function () {
       
       await expect(
         executeAsMultisig(capx, "revenueMint", user1.address, revenue)
-      ).to.be.revertedWith("Invalid Oracle Price");
+      ).to.be.revertedWithCustomError(capx, "InvalidOraclePrice");
 
       await mockV3Aggregator.updateAnswer(-100);
 
       await expect(
         executeAsMultisig(capx, "revenueMint", user1.address, revenue)
-      ).to.be.revertedWith("Invalid Oracle Price");
+      ).to.be.revertedWithCustomError(capx, "InvalidOraclePrice");
     });
   });
 

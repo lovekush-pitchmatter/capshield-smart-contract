@@ -39,12 +39,12 @@ describe("CAPX Token - Shield Token", function () {
     it("Should have correct name and symbol", async function () {
       expect(await capx.name()).to.equal("CAPShield Token");
       expect(await capx.symbol()).to.equal("CAPY");
-      expect(await capx.decimals()).to.equal(18);
+      expect(Number(await capx.decimals())).to.equal(18);
     });
 
     it("Should start with zero total supply", async function () {
-      expect(await capx.totalSupply()).to.equal(0);
-      expect(await capx.totalMinted()).to.equal(0);
+      expect(Number(await capx.totalSupply())).to.equal(0);
+      expect(Number(await capx.totalMinted())).to.equal(0);
     });
 
     it("Should have correct MAX_SUPPLY", async function () {
