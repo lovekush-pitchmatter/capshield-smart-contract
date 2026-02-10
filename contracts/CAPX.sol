@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
 
 // CAPX - CAPShield Token (Shield Token)
 // ERC20 + AccessControl with advanced features
@@ -12,12 +14,13 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 // Hard cap: 100,000,000 tokens
 // Features:
 // - Role-based minting (Team, Treasury, DAO)
-// - Revenue-mint formula hook
+// - Revenue-mint formula hook (Chainlink Oracle)
 // - Transfer hooks: 1% burn, 1% treasury allocation
 // - Exemptions for Treasury and DAO
 // - Pause + Emergency Stop
 // - Multisig admin roles
-contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
+// - Chainlink Automation (Keepers)
+contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl, AutomationCompatibleInterface {
     ///////////////// ERRORS /////////////////
 
     error ZeroAddress();
@@ -29,6 +32,7 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
     error CannotSetExemptionForZeroAddress();
     error TransferFromZeroAddress();
     error TransferToZeroAddress();
+    error InvalidOraclePrice();
 
     ///////////////// ROLE DEFINITIONS /////////////////
 
@@ -48,6 +52,15 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
     uint256 public constant BURN_FEE_PERCENT = 1; // 1% burn
     uint256 public constant TREASURY_FEE_PERCENT = 1; // 1% treasury
     uint256 private constant FEE_DENOMINATOR = 100;
+
+    // Oracle parameters
+    AggregatorV3Interface public priceFeed;
+    uint256 public constant ORACLE_PRECISION = 1e8;
+
+    // Automation parameters
+    uint256 public mintInterval = 1 days;
+    uint256 public lastMintTime;
+    uint256 public pendingRevenue;
 
     // Important addresses
     address public treasuryAddress;
@@ -74,19 +87,25 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
      * @param _treasuryAddress Treasury address for fee collection
      * @param _daoAddress DAO address for governance
      * @param _adminAddress Multisig admin address (must be a contract)
+     * @param _priceFeedAddress Chainlink Price Feed address
      */
-    constructor(address _treasuryAddress, address _daoAddress, address _adminAddress)
-        ERC20("CAPShield Token", "CAPY")
-    {
+    constructor(
+        address _treasuryAddress,
+        address _daoAddress,
+        address _adminAddress,
+        address _priceFeedAddress
+    ) ERC20("CAPShield Token", "CAPY") {
         require(_treasuryAddress != address(0), ZeroAddress());
         require(_daoAddress != address(0), ZeroAddress());
         require(_adminAddress != address(0), ZeroAddress());
+        require(_priceFeedAddress != address(0), ZeroAddress());
 
         // This prevents single EOA from having full control over the token
         require(_isContract(_adminAddress), AdminMustBeContract());
 
         treasuryAddress = _treasuryAddress;
         daoAddress = _daoAddress;
+        priceFeed = AggregatorV3Interface(_priceFeedAddress);
 
         // Grant roles to admin (multisig)
         _grantRole(DEFAULT_ADMIN_ROLE, _adminAddress);
@@ -155,26 +174,88 @@ contract CAPX is ERC20, ERC20Burnable, Pausable, AccessControl {
     }
 
     /**
-     * @dev Revenue-based minting function
+     * @dev Add revenue to the pending pool (Simulates receiving earnings)
+     */
+    function addRevenue(uint256 amount) external {
+        pendingRevenue += amount;
+    }
+
+    /**
+     * @dev Chainlink Automation: Check if upkeep is needed
+     */
+    function checkUpkeep(bytes calldata /* checkData */)
+        external
+        view
+        override
+        returns (bool upkeepNeeded, bytes memory /* performData */)
+    {
+        upkeepNeeded = (block.timestamp - lastMintTime) > mintInterval && pendingRevenue > 0;
+        return (upkeepNeeded, "");
+    }
+
+    /**
+     * @dev Chainlink Automation: Execute upkeep (Mint pending revenue)
+     */
+    function performUpkeep(bytes calldata /* performData */) external override {
+        // Validation
+        if ((block.timestamp - lastMintTime) <= mintInterval || pendingRevenue == 0) {
+            revert("Upkeep not needed");
+        }
+        
+        uint256 revenueToMint = pendingRevenue;
+        pendingRevenue = 0;
+        lastMintTime = block.timestamp;
+
+        // Execute internal mint
+        _revenueMintLogic(treasuryAddress, revenueToMint);
+    }
+
+    /**
+     * @dev Revenue-based minting function (Trustless via Chainlink)
      * Formula: amount = revenue / marketValue
      * @param to Recipient address
      * @param revenue Revenue amount (in wei or base units)
-     * @param marketValue Current market value per token (in wei or base units)
      */
-    function revenueMint(address to, uint256 revenue, uint256 marketValue)
+    function revenueMint(address to, uint256 revenue)
         external
         onlyRole(TREASURY_MINTER_ROLE)
         whenNotPaused
     {
         require(revenue > 0, ZeroRevenue());
-        require(marketValue > 0, ZeroMarketValue());
+        _revenueMintLogic(to, revenue);
+    }
 
+    /**
+     * @dev Internal shared logic for revenue minting
+     */
+    function _revenueMintLogic(address to, uint256 revenue) internal {
+        // 1. Get latest price from Chainlink
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+        require(price > 0, InvalidOraclePrice());
+
+        // 2. Adjust decimals (Chainlink is 8 decimals, Token is 18)
+        uint256 marketValue = uint256(price) * 1e10; 
+
+        // 3. Calculate amount
         uint256 amount = (revenue * 10 ** _DECIMALS) / marketValue;
         require(amount > 0, ZeroMintAmount());
 
         _mintWithCapCheck(to, amount);
 
         emit RevenueMint(to, amount, revenue, marketValue);
+    }
+
+    /**
+     * @dev Update Price Feed Address
+     * @param newPriceFeed New Oracle Address
+     */
+    function setPriceFeed(address newPriceFeed) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(newPriceFeed != address(0), ZeroAddress());
+        priceFeed = AggregatorV3Interface(newPriceFeed);
+    }
+
+    function setMintInterval(uint256 newInterval) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        mintInterval = newInterval;
     }
 
     /**
